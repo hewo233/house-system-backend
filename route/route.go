@@ -12,4 +12,9 @@ func InitRoute(r *gin.Engine) {
 
 	r.GET("/ping", handler.Ping)
 
+	auth := r.Group("/auth")
+	{
+		auth.POST("/register", handler.UserRegister)
+		auth.POST("/login", handler.UserLogin)
+	}
 }
