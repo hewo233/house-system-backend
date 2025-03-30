@@ -1,0 +1,15 @@
+package route
+
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/hewo233/house-system-backend/handler"
+	"github.com/hewo233/house-system-backend/middleware"
+)
+
+func InitRoute(r *gin.Engine) {
+
+	r.Use(middleware.CorsMiddleware())
+
+	r.GET("/ping", handler.Ping)
+
+}
