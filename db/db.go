@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"github.com/hewo233/house-system-backend/module"
+	"github.com/hewo233/house-system-backend/models"
 	"github.com/hewo233/house-system-backend/shared/consts"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
@@ -14,16 +14,15 @@ import (
 func UpdateDB() {
 	err := DB.AutoMigrate(&models.User{})
 	if err != nil {
-		log.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 	log.Println("AutoMigrate success")
 }
 
 func ConnectDB() {
 
-	if err := godotenv.Load(consts.EnvFile); err != nil {
-		log.Println("Error loading .env file")
+	if err := godotenv.Load(consts.DBEnvFile); err != nil {
+		log.Fatal("Error loading .env file")
 	}
 
 	host := os.Getenv("DB_HOST")
@@ -38,7 +37,6 @@ func ConnectDB() {
 
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Println(err)
-		panic("failed to connect database")
+		log.Fatal("failed to connect database")
 	}
 }

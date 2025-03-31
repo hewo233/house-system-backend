@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/hewo233/house-system-backend/db"
-	models "github.com/hewo233/house-system-backend/module"
+	models "github.com/hewo233/house-system-backend/models"
 	"github.com/hewo233/house-system-backend/shared/consts"
 	"github.com/hewo233/house-system-backend/utils/jwt"
 	"github.com/hewo233/house-system-backend/utils/password"

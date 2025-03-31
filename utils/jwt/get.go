@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/hewo233/house-system-backend/db"
-	models "github.com/hewo233/house-system-backend/module"
+	models "github.com/hewo233/house-system-backend/models"
 	"gorm.io/gorm"
 )
 

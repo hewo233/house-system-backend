@@ -17,4 +17,10 @@ func InitRoute(r *gin.Engine) {
 		auth.POST("/register", handler.UserRegister)
 		auth.POST("/login", handler.UserLogin)
 	}
+
+	user := r.Group("/user")
+	user.Use(middleware.JWTAuth("user"))
+	{
+
+	}
 }
