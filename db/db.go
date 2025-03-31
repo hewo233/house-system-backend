@@ -16,7 +16,7 @@ func UpdateDB() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println("AutoMigrate success")
+	log.Println("\033[32mAutoMigrate success\033[0m")
 }
 
 func ConnectDB() {

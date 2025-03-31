@@ -3,7 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/hewo233/house-system-backend/db"
-	models "github.com/hewo233/house-system-backend/models"
+	"github.com/hewo233/house-system-backend/models"
 	"github.com/hewo233/house-system-backend/shared/consts"
 	"github.com/hewo233/house-system-backend/utils/jwt"
 	"github.com/hewo233/house-system-backend/utils/password"
@@ -13,7 +13,6 @@ import (
 type UserRegisterRequest struct {
 	Username   string `json:"username" binding:"required"`
 	Password   string `json:"password" binding:"required"`
-	Name       string `json:"name" binding:"required"`
 	Phone      string `json:"phone" binding:"required"`
 	InviteCode string `json:"invite_code" binding:"required"` // 内部邀请码
 }
@@ -48,8 +47,8 @@ func UserRegister(c *gin.Context) {
 		return
 	}
 
-	var existingUser models.User
-	result := db.DB.Table("users").Where("phone = ?", req.Phone).Limit(1).Find(&existingUser)
+	existingUser := models.NewUser()
+	result := db.DB.Table("users").Where("phone = ?", req.Phone).Limit(1).Find(existingUser)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50000,
@@ -126,9 +125,9 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
-	var user models.User
+	user := models.NewUser()
 
-	result := db.DB.Table("users").Where("phone = ?", req.Phone).First(&user)
+	result := db.DB.Table("users").Where("phone = ?", req.Phone).First(user)
 	if result.Error != nil {
 		if result.Error.Error() == "record not found" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -168,24 +167,13 @@ func UserLogin(c *gin.Context) {
 		"errno":    20000,
 		"message":  "login successfully",
 		"token":    jwtToken,
-		"userData": user,
+		"userData": *user,
 	})
 
 }
 
-func GetUserInfoByPhone(c *gin.Context) {
-	phone := c.Param("phone")
-	if len(phone) != 11 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"errno":   40008,
-			"message": "invalid phone number",
-		})
-		c.Abort()
-		return
-	}
-
-	var user models.User
-
+func CheckUser(c *gin.Context) bool {
+	// admin can access too
 	_, _, err := jwt.GetPhoneFromJWT(c)
 	if err != nil {
 		if err.Error() == "user not found" {
@@ -200,6 +188,27 @@ func GetUserInfoByPhone(c *gin.Context) {
 			})
 		}
 		c.Abort()
+		return false
+	}
+
+	return true
+}
+
+func GetUserInfoByPhone(c *gin.Context) {
+	phone := c.Param("phone")
+
+	if len(phone) != 11 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40008,
+			"message": "invalid phone number",
+		})
+		c.Abort()
+		return
+	}
+
+	var user models.User
+
+	if ok := CheckUser(c); !ok {
 		return
 	}
 
@@ -226,4 +235,115 @@ func GetUserInfoByPhone(c *gin.Context) {
 		"userData": user,
 	})
 
+}
+
+func ModifyUserSelf(c *gin.Context) {
+	phone, user, err := jwt.GetPhoneFromJWT(c)
+
+	if phone == "admin" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40012,
+			"message": "admin is not user",
+		})
+		c.Abort()
+		return
+	}
+
+	if err != nil {
+		if err.Error() == "user not found" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"errno":   40101,
+				"message": "Unauthorized, user in jwt not found",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50007,
+				"message": "failed to get user info: " + err.Error(),
+			})
+		}
+		c.Abort()
+		return
+	}
+
+	var updateData struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	if err := c.ShouldBindJSON(&updateData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40013,
+			"message": "failed to bind update request: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	// 名字不一样再改
+	if updateData.Username != "" && updateData.Username != user.Username {
+		user.Username = updateData.Username
+	}
+
+	// 密码不为空就改
+	if updateData.Password != "" {
+		if len(updateData.Password) < 6 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"errno":   40014,
+				"message": "password must be at least 6 characters long",
+			})
+			c.Abort()
+			return
+		}
+
+		hashedPassword, err := password.HashPassword(updateData.Password)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50010,
+				"message": "failed to hash password: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+		user.Password = hashedPassword
+	}
+
+	if err := db.DB.Table("users").Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50011,
+			"message": "failed to update user: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":    20000,
+		"message":  "user updated successfully",
+		"userData": user,
+	})
+}
+
+func ListUser(c *gin.Context) {
+
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
+	var users []models.User
+
+	result := db.DB.Table("users").Find(&users)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50007,
+			"message": "failed to query database: " + result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":    20000,
+		"message":  "get user list successfully",
+		"userList": users,
+	})
 }

@@ -16,11 +16,22 @@ func InitRoute(r *gin.Engine) {
 	{
 		auth.POST("/register", handler.UserRegister)
 		auth.POST("/login", handler.UserLogin)
+		auth.POST("/admin/login", handler.AdminLogin)
 	}
 
 	user := r.Group("/user")
 	user.Use(middleware.JWTAuth("user"))
 	{
+		user.GET("/info/:phone", handler.GetUserInfoByPhone)
+		user.POST("/update", handler.ModifyUserSelf)
+		user.GET("/list", handler.ListUser)
+	}
 
+	admin := r.Group("/admin")
+	admin.Use(middleware.JWTAuth("admin"))
+	{
+		admin.GET("/info/:phone", handler.GetUserInfoByPhone)
+		admin.GET("/list", handler.ListUser)
+		admin.DELETE("/user/:phone", handler.AdminRemoveUserByPhone)
 	}
 }

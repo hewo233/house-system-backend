@@ -1,4 +1,4 @@
-package init
+package Init
 
 import "github.com/hewo233/house-system-backend/db"
 

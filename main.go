@@ -2,13 +2,13 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/hewo233/house-system-backend/init"
+	"github.com/hewo233/house-system-backend/Init"
 	"github.com/hewo233/house-system-backend/route"
 	"log"
 )
 
 func main() {
-	init.AllInit()
+	Init.AllInit()
 
 	r := gin.Default()
 	route.InitRoute(r)
