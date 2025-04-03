@@ -2,14 +2,35 @@ package models
 
 import "gorm.io/gorm"
 
-type Category struct {
-	HouseType int     `json:"type" gorm:"size:10;"`
-	Region    int     `json:"region" gorm:"size:10;"`
-	Price     float64 `json:"price" gorm:"size:15;"`
-	Status    int     `json:"status" gorm:"size:10;"`
+type Address struct {
+	Distinct int    `json:"distinct" gorm:"column:distinct;not null;size:6"`
+	Details  string `json:"details" gorm:"column:details;size:255"`
 }
 
 type Property struct {
 	gorm.Model
-	Address string `json:"address" gorm:"size:100;not null"`
+	Address       Address `json:"address" gorm:"embedded"`                    // 6bit
+	Direction     int     `json:"direction" gorm:"column:direction;not null"` // 10
+	Height        int     `json:"height" gorm:"column:height;not null"`       // 3
+	Price         float64 `json:"price" gorm:"column:price;not null"`
+	Renovation    int     `json:"renovation" gorm:"column:renovation;not null"` // 4
+	Room          int     `json:"room" gorm:"column:room;not null"`             // 5
+	Size          float64 `json:"size" gorm:"column:size;not null"`
+	Special       int     `json:"special" gorm:"column:special"`                      // 5
+	SubjectMatter int     `json:"subjectmatter" gorm:"column:subjectmatter;not null"` // 4
+}
+
+func NewProperty() *Property {
+	return &Property{}
+}
+
+type PropertyImage struct {
+	gorm.Model
+	PropertyID uint   `json:"property_id" gorm:"column:property_id;index;not null"`
+	URL        string `json:"url" gorm:"column:url;not null;size:1024"`
+	IsMain     bool   `json:"is_main" gorm:"column:is_main;default:false"` // 是否为主图
+}
+
+func NewPropertyImage() *PropertyImage {
+	return &PropertyImage{}
 }
