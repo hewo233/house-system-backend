@@ -1,16 +1,15 @@
 package handler
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/hewo233/house-system-backend/db"
 	"github.com/hewo233/house-system-backend/models"
+	"github.com/hewo233/house-system-backend/shared/consts"
 	"github.com/jinzhu/copier"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 type CreatePropertyBaseInfoRequest struct {
@@ -131,11 +130,11 @@ func CreatePropertyBaseInfo(c *gin.Context) {
 }
 
 func CreatePropertyImage(c *gin.Context) {
-	propertyID := c.Param("id")
+	propertyID := c.Param("property_id")
 	if propertyID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40030,
-			"message": "房源ID不能为空",
+			"message": "id cannot be empty",
 		})
 		c.Abort()
 		return
@@ -143,10 +142,10 @@ func CreatePropertyImage(c *gin.Context) {
 
 	// 验证房源是否存在
 	var property models.Property
-	if err := db.DB.First(&property, propertyID).Error; err != nil {
+	if err := db.DB.Table("properties").Where("property_id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40031,
-			"message": "房源不存在: " + err.Error(),
+			"message": "id do not exits: " + err.Error(),
 		})
 		c.Abort()
 		return
@@ -157,7 +156,7 @@ func CreatePropertyImage(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40032,
-			"message": "解析文件失败: " + err.Error(),
+			"message": "parse from error: " + err.Error(),
 		})
 		c.Abort()
 		return
@@ -169,7 +168,7 @@ func CreatePropertyImage(c *gin.Context) {
 	if len(files) == 0 {
 
 		// 添加默认图片
-		defaultImageURL := "http://your-minio-endpoint/property-images/default.jpg" // 替换为实际默认图URL
+		defaultImageURL := consts.DefaultImageUrl // 替换为实际默认图URL
 
 		propertyIDUint, _ := strconv.ParseUint(propertyID, 10, 32)
 		defaultImage := models.PropertyImage{
@@ -181,7 +180,7 @@ func CreatePropertyImage(c *gin.Context) {
 		if err := db.DB.Create(&defaultImage).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50035,
-				"message": "保存默认图片记录失败: " + err.Error(),
+				"message": "save default image error: " + err.Error(),
 			})
 			c.Abort()
 			return
@@ -189,7 +188,7 @@ func CreatePropertyImage(c *gin.Context) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"errno":   20030,
-			"message": "已添加默认图片",
+			"message": "successfully added default image",
 			"image":   defaultImage,
 		})
 		return
@@ -238,68 +237,13 @@ func CreatePropertyImage(c *gin.Context) {
 		}
 	}
 
-	// 处理每个上传的文件
 	var uploadedImages []models.PropertyImage
+
 	for i, file := range files {
-		// 打开文件
-		src, err := file.Open()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"errno":   50033,
-				"message": "打开文件失败: " + err.Error(),
-			})
-			c.Abort()
-			return
-		}
-		defer src.Close()
 
-		// 生成唯一的文件名
-		objectName := fmt.Sprintf("%s/%s-%s", propertyID, time.Now().Format("20060102150405"), file.Filename)
-
-		// 获取文件Content-Type
-		contentType := file.Header.Get("Content-Type")
-		if contentType == "" {
-			contentType = "application/octet-stream"
-		}
-
-		// 上传文件到Minio
-		_, err = minioClient.PutObject(c, bucketName, objectName, src, file.Size, minio.PutObjectOptions{
-			ContentType: contentType,
-		})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"errno":   50034,
-				"message": "上传文件到Minio失败: " + err.Error(),
-			})
-			c.Abort()
-			return
-		}
-
-		// 获取文件URL
-		url := fmt.Sprintf("%s/%s/%s", endpoint, bucketName, objectName)
-		if useSSL {
-			url = "https://" + url
-		} else {
-			url = "http://" + url
-		}
-
-		// 创建图片记录
-		propertyIDUint, _ := strconv.ParseUint(propertyID, 10, 32)
 		image := models.PropertyImage{
-			PropertyID: uint(propertyIDUint),
-			URL:        url,
-			IsMain:     i == 0, // 第一张图片设为主图
+			PropertyID: property.ID,
 		}
-
-		if err := db.DB.Create(&image).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"errno":   50035,
-				"message": "保存图片记录失败: " + err.Error(),
-			})
-			c.Abort()
-			return
-		}
-
 		uploadedImages = append(uploadedImages, image)
 	}
 

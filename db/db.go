@@ -12,7 +12,11 @@ import (
 )
 
 func UpdateDB() {
-	err := DB.AutoMigrate(&models.User{}, &models.Property{})
+	err := DB.Table(consts.UserTable).AutoMigrate(&models.User{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = DB.Table(consts.PropertyTable).AutoMigrate(&models.Property{})
 	if err != nil {
 		log.Fatal(err)
 	}
