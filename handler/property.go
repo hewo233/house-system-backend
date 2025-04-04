@@ -82,6 +82,11 @@ func (req *CreatePropertyBaseInfoRequest) Validate() (bool, string) {
 }
 
 func CreatePropertyBaseInfo(c *gin.Context) {
+
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
 	var req CreatePropertyBaseInfoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -135,6 +140,11 @@ func CreatePropertyBaseInfo(c *gin.Context) {
 }
 
 func CreatePropertyImage(c *gin.Context) {
+
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
 	propertyID := c.Param("houseID")
 	if propertyID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -230,6 +240,11 @@ func CreatePropertyImage(c *gin.Context) {
 }
 
 func CreatePropertyRichText(c *gin.Context) {
+
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
 	propertyID := c.Param("houseID")
 	if propertyID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -323,6 +338,11 @@ type GetPropertyByIDResponse struct {
 }
 
 func GetPropertyByID(c *gin.Context) {
+
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
 	propertyID := c.Param("houseID")
 	if propertyID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
