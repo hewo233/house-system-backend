@@ -1,5 +1,6 @@
 package consts
 
 const (
-	DBEnvFile = "./db/.env"
+	DBEnvFile  = "./db/.env"
+	OSSEnvFIle = "./utils/OSS/.env"
 )

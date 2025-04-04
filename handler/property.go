@@ -1,13 +1,13 @@
 package handler
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/hewo233/house-system-backend/db"
 	"github.com/hewo233/house-system-backend/models"
 	"github.com/hewo233/house-system-backend/shared/consts"
+	"github.com/hewo233/house-system-backend/utils/OSS"
 	"github.com/jinzhu/copier"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	"net/http"
 	"strconv"
 )
@@ -103,7 +103,7 @@ func CreatePropertyBaseInfo(c *gin.Context) {
 	}
 
 	newProperty := models.NewProperty()
-	err := copier.Copy(newProperty, &req.Address)
+	err := copier.Copy(newProperty, &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50020,
@@ -112,6 +112,11 @@ func CreatePropertyBaseInfo(c *gin.Context) {
 		c.Abort()
 		return
 	}
+
+	fmt.Printf("Request: %+v\n", req)
+	fmt.Printf("New Property: %+v\n", newProperty)
+
+	newProperty.RichTextURL = ""
 
 	if err := db.DB.Table("properties").Create(newProperty).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -125,12 +130,12 @@ func CreatePropertyBaseInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"errno":   20020,
 		"message": "property created successfully",
-		"id":      newProperty.ID,
+		"houseId": newProperty.ID,
 	})
 }
 
 func CreatePropertyImage(c *gin.Context) {
-	propertyID := c.Param("property_id")
+	propertyID := c.Param("houseID")
 	if propertyID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40030,
@@ -142,7 +147,7 @@ func CreatePropertyImage(c *gin.Context) {
 
 	// 验证房源是否存在
 	var property models.Property
-	if err := db.DB.Table("properties").Where("property_id=?", propertyID).First(&property).Error; err != nil {
+	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40031,
 			"message": "id do not exits: " + err.Error(),
@@ -194,62 +199,180 @@ func CreatePropertyImage(c *gin.Context) {
 		return
 	}
 
-	// Minio客户端初始化代码...
-	endpoint := "your-minio-endpoint"
-	accessKeyID := "your-access-key"
-	secretAccessKey := "your-secret-key"
-	useSSL := false
-
-	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
-		Secure: useSSL,
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"errno":   50030,
-			"message": "初始化Minio客户端失败: " + err.Error(),
-		})
-		c.Abort()
-		return
-	}
-
-	// 存储桶检查代码...
-	bucketName := "property-images"
-	exists, err := minioClient.BucketExists(c, bucketName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"errno":   50031,
-			"message": "检查存储桶失败: " + err.Error(),
-		})
-		c.Abort()
-		return
-	}
-
-	if !exists {
-		err = minioClient.MakeBucket(c, bucketName, minio.MakeBucketOptions{})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"errno":   50032,
-				"message": "创建存储桶失败: " + err.Error(),
-			})
-			c.Abort()
-			return
-		}
-	}
-
 	var uploadedImages []models.PropertyImage
 
 	for i, file := range files {
 
+		url, err := OSS.UploadImageToOSS(c, file)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50036,
+				"message": "OSS 上传图片失败: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+
+		propertyIDUint, _ := strconv.ParseUint(propertyID, 10, 32)
 		image := models.PropertyImage{
-			PropertyID: property.ID,
+			PropertyID: uint(propertyIDUint),
+			URL:        url,
+			IsMain:     i == 0,
 		}
 		uploadedImages = append(uploadedImages, image)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"errno":   20030,
+		"errno":   20000,
 		"message": "图片上传成功",
 		"images":  uploadedImages,
 	})
+}
+
+func CreatePropertyRichText(c *gin.Context) {
+	propertyID := c.Param("houseID")
+	if propertyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40040,
+			"message": "property id cannot be empty",
+		})
+		c.Abort()
+		return
+	}
+
+	// 验证房源是否存在
+	var property models.Property
+	if err := db.DB.Table("properties").Where("property_id=?", propertyID).First(&property).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40041,
+			"message": "property does not exist: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40042,
+			"message": "parse form error: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	richText := form.File["richText"][0]
+
+	if richText == nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40043,
+			"message": "richText cannot be empty",
+		})
+		c.Abort()
+		return
+	}
+	if richText.Header.Get("Content-Type") != "text/html" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40044,
+			"message": "richText must be a HTML file",
+		})
+	}
+
+	url, err := OSS.UploadHTMLToOSS(c, richText)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50040,
+			"message": "failed to upload html file: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	property.RichTextURL = url
+	if err := db.DB.Table("properties").Where("property_id=?", propertyID).Updates(property).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50041,
+			"message": "failed to create property rich text URL: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20000,
+		"message": "successfully created property rich text URL",
+	})
+}
+
+type GetPropertyByIDResponse struct {
+	Results struct {
+		Basic struct {
+			Address struct {
+				Distinct int    `json:"distinct"`
+				Details  string `json:"details"`
+			} `json:"address"`
+			Price      float64 `json:"price"`
+			Size       float64 `json:"size"`
+			Room       int     `json:"room"`
+			Direction  int     `json:"direction"`
+			UploadTime string  `json:"uploadTime"`
+		} `json:"basic"`
+		Images   []string `json:"images"`
+		RichText string   `json:"richText"`
+	} `json:"results"`
+}
+
+func GetPropertyByID(c *gin.Context) {
+	propertyID := c.Param("houseID")
+	if propertyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40050,
+			"message": "property id cannot be empty",
+		})
+		c.Abort()
+		return
+	}
+
+	var property models.Property
+	if err := db.DB.Table("properties").Where("property_id=?", propertyID).First(&property).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40051,
+			"message": "property does not exist: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	var propertyImages []models.PropertyImage
+	if err := db.DB.Table("property_images").Where("property_id=?", propertyID).Find(&propertyImages).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50050,
+			"message": "failed to query property images: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	var imageUrls []string
+	for _, image := range propertyImages {
+		imageUrls = append(imageUrls, image.URL)
+	}
+
+	var response GetPropertyByIDResponse
+	response.Results.Basic.Address.Distinct = property.Address.Distinct
+	response.Results.Basic.Address.Details = property.Address.Details
+	response.Results.Basic.Price = property.Price
+	response.Results.Basic.Size = property.Size
+	response.Results.Basic.Room = property.Room
+	response.Results.Basic.Direction = property.Direction
+	response.Results.Basic.UploadTime = property.CreatedAt.Format("2006-01-02 15:04:05")
+	response.Results.Images = imageUrls
+	response.Results.RichText = property.RichTextURL
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20000,
+		"message": "successfully get property by ID",
+		"results": response,
+	})
+
 }

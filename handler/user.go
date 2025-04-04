@@ -94,15 +94,19 @@ func UserRegister(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"errno":    20000,
-		"message":  "user created successfully",
-		"userData": newUser,
+		"errno":   20000,
+		"message": "user created successfully",
 	})
 }
 
 type UserLoginRequest struct {
 	Phone    string `json:"phone" binding:"required"`
 	Password string `json:"password" binding:"required"`
+}
+
+type UserLoginResponse struct {
+	Token string `json:"token"`
+	User  models.User
 }
 
 func UserLogin(c *gin.Context) {
@@ -163,11 +167,14 @@ func UserLogin(c *gin.Context) {
 		return
 	}
 
+	var rep UserLoginResponse
+	rep.Token = jwtToken
+	rep.User = *user
+
 	c.JSON(http.StatusOK, gin.H{
-		"errno":    20000,
-		"message":  "login successfully",
-		"token":    jwtToken,
-		"userData": *user,
+		"errno":   20000,
+		"message": "login successfully",
+		"result":  rep,
 	})
 
 }
@@ -192,6 +199,10 @@ func CheckUser(c *gin.Context) bool {
 	}
 
 	return true
+}
+
+type GetUserInfoResponse struct {
+	User models.User `json:"user"`
 }
 
 func GetUserInfoByPhone(c *gin.Context) {
@@ -229,10 +240,14 @@ func GetUserInfoByPhone(c *gin.Context) {
 		return
 	}
 
+	rep := GetUserInfoResponse{
+		User: user,
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"errno":    20000,
-		"message":  "get user info successfully",
-		"userData": user,
+		"errno":   20000,
+		"message": "get user info successfully",
+		"result":  rep,
 	})
 
 }
@@ -317,10 +332,13 @@ func ModifyUserSelf(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"errno":    20000,
-		"message":  "user updated successfully",
-		"userData": user,
+		"errno":   20000,
+		"message": "user updated successfully",
 	})
+}
+
+type ListUserResponse struct {
+	Results []models.User `json:"users"`
 }
 
 func ListUser(c *gin.Context) {
@@ -341,9 +359,13 @@ func ListUser(c *gin.Context) {
 		return
 	}
 
+	rep := ListUserResponse{
+		Results: users,
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"errno":    20000,
-		"message":  "get user list successfully",
-		"userList": users,
+		"errno":   20000,
+		"message": "get user list successfully",
+		"result":  rep,
 	})
 }

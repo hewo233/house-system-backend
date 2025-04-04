@@ -3,7 +3,7 @@ package models
 import "gorm.io/gorm"
 
 type Address struct {
-	Distinct int    `json:"distinct" gorm:"column:distinct;not null;size:6"`
+	Distinct int    `json:"distinct" gorm:"column:distinct;not null;type:integer"`
 	Details  string `json:"details" gorm:"column:details;size:255"`
 }
 
@@ -18,6 +18,8 @@ type Property struct {
 	Size          float64 `json:"size" gorm:"column:size;not null"`
 	Special       int     `json:"special" gorm:"column:special"`                      // 5
 	SubjectMatter int     `json:"subjectmatter" gorm:"column:subjectmatter;not null"` // 4
+
+	RichTextURL string `json:"rich_text_url" gorm:"column:rich_text_url;size:1024"` // 富文本内容
 }
 
 func NewProperty() *Property {

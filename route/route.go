@@ -34,4 +34,13 @@ func InitRoute(r *gin.Engine) {
 		admin.GET("/list", handler.ListUser)
 		admin.DELETE("/user/:phone", handler.AdminRemoveUserByPhone)
 	}
+
+	house := r.Group("/house")
+	house.Use(middleware.JWTAuth("user"))
+	{
+		house.POST("/create/info", handler.CreatePropertyBaseInfo)
+		house.POST("/create/image/:houseID", handler.CreatePropertyImage)
+		house.POST("/create/richtext/:houseID", handler.CreatePropertyRichText)
+		house.GET("/info/:houseID", handler.GetPropertyByID)
+	}
 }

@@ -1,12 +1,11 @@
 package Init
 
-import "github.com/hewo233/house-system-backend/db"
-
-func DBInit() {
-	db.ConnectDB()
-	db.UpdateDB()
-}
+import (
+	"github.com/hewo233/house-system-backend/db"
+	"github.com/hewo233/house-system-backend/utils/OSS"
+)
 
 func AllInit() {
-	DBInit()
+	db.Init()
+	OSS.Init()
 }

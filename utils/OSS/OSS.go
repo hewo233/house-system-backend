@@ -27,7 +27,7 @@ func UploadFileToOSS(ctx context.Context, category string, objectName string, fi
 	}
 
 	// 上传文件到 Minio
-	_, err := minioClient.PutObject(ctx, bucket, fullObjectName, fileReader, fileSize, minio.PutObjectOptions{
+	_, err := minioClient.PutObject(context.Background(), bucket, fullObjectName, fileReader, fileSize, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 	if err != nil {
@@ -41,7 +41,7 @@ func UploadImageToOSS(ctx context.Context, file *multipart.FileHeader) (string, 
 
 	const maxFileSize = consts.TreeMB
 	if file.Size > maxFileSize {
-		return "", fmt.Errorf("文件大小超过限制，最大允许 10MB")
+		return "", fmt.Errorf("file size should less than 3MB")
 	}
 
 	category := "images"
@@ -72,10 +72,29 @@ func UploadImageToOSS(ctx context.Context, file *multipart.FileHeader) (string, 
 	if err != nil {
 		return "", fmt.Errorf("file to open image: %w", err)
 	}
-	defer src.Close()
 
 	// 生成唯一的文件名
 	objectName := fmt.Sprintf("%s-%s", time.Now().Format("20060102150405"), file.Filename)
 
 	return UploadFileToOSS(ctx, category, objectName, src, file.Size, contentType)
+}
+
+func UploadHTMLToOSS(ctx context.Context, file *multipart.FileHeader) (string, error) {
+
+	const maxFileSize = consts.TreeMB
+	if file.Size > maxFileSize {
+		return "", fmt.Errorf("file size should less than 3MB")
+	}
+
+	category := "html"
+	contextType := "text/html"
+
+	src, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("file to open html: %w", err)
+	}
+
+	// 生成唯一的文件名
+	objectName := fmt.Sprintf("%s-%s", time.Now().Format("20060102150405"), file.Filename)
+	return UploadFileToOSS(ctx, category, objectName, src, file.Size, contextType)
 }

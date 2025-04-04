@@ -44,3 +44,4 @@ func ConnectDB() {
 		log.Fatal("failed to connect database")
 	}
 }
+
