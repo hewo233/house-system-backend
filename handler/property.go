@@ -10,8 +10,10 @@ import (
 	"github.com/hewo233/house-system-backend/utils/OSS"
 	"github.com/jinzhu/copier"
 	"gorm.io/gorm"
+	"math"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type CreatePropertyBaseInfoRequest struct {
@@ -137,7 +139,7 @@ func CreatePropertyBaseInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"errno":   20020,
 		"message": "property created successfully",
-		"houseId": newProperty.ID,
+		"houseID": newProperty.ID,
 	})
 }
 
@@ -298,6 +300,16 @@ func CreatePropertyRichText(c *gin.Context) {
 		return
 	}
 
+	// 验证房源是否已经上传过富文本
+	if property.RichTextURL != "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40042,
+			"message": "property rich text already exist",
+		})
+		c.Abort()
+		return
+	}
+
 	form, err := c.MultipartForm()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -308,7 +320,26 @@ func CreatePropertyRichText(c *gin.Context) {
 		return
 	}
 
-	richText := form.File["richText"][0]
+	files := form.File["richText"]
+	if len(files) == 0 {
+		url := consts.DefaultHTMLUrl
+		property.RichTextURL = url
+		if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(property).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50041,
+				"message": "failed to create property rich text URL: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"errno":   20000,
+			"message": "successfully created property by default richText",
+		})
+	}
+
+	richText := files[0]
 
 	if richText == nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -432,25 +463,11 @@ type ListPropertyResponse struct {
 	Address    string  `json:"address"`
 	Price      float64 `json:"price"`
 	Size       float64 `json:"size"`
-	HouseID    uint    `json:"houseId"`
+	HouseID    uint    `json:"houseID"`
 	UploadTime string  `json:"uploadTime"`
 }
 
-func ListProperty(c *gin.Context) {
-	if ok := CheckUser(c); !ok {
-		return
-	}
-
-	var properties []models.Property
-	if err := db.DB.Table("properties").Find(&properties).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"errno":   50060,
-			"message": "failed to query properties: " + err.Error(),
-		})
-		c.Abort()
-		return
-	}
-
+func getListResponseByProperties(c *gin.Context, properties []models.Property) ([]ListPropertyResponse, bool) {
 	var response []ListPropertyResponse
 	for _, property := range properties {
 
@@ -461,7 +478,7 @@ func ListProperty(c *gin.Context) {
 				"message": "failed to query property images: " + err.Error(),
 			})
 			c.Abort()
-			return
+			return nil, false
 		}
 
 		var cover string
@@ -481,9 +498,147 @@ func ListProperty(c *gin.Context) {
 		})
 	}
 
+	return response, true
+}
+
+func ListProperty(c *gin.Context) {
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
+	var properties []models.Property
+	if err := db.DB.Table("properties").Find(&properties).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50060,
+			"message": "failed to query properties: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	var response []ListPropertyResponse
+	response, ok := getListResponseByProperties(c, properties)
+	if !ok {
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"errno":   20000,
 		"message": "successfully get all properties",
+		"results": response,
+	})
+}
+
+type SelectPropertiesRequest struct {
+	Address struct {
+		Province int `json:"province"`
+		City     int `json:"city"`
+		Distinct int `json:"distinct"`
+	} `json:"address"`
+	Price         []int `json:"price"`
+	Size          []int `json:"size"`
+	Special       []int `json:"special"`
+	Room          []int `json:"room"`
+	Direction     []int `json:"direction"`
+	Height        []int `json:"height"`
+	Renovation    []int `json:"renovation"`
+	SubjectMatter []int `json:"subjectmatter"`
+}
+
+func SelectProperties(c *gin.Context) {
+	var req SelectPropertiesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40070,
+			"message": "failed to bind SelectProperties Request: " + err.Error(),
+		})
+		return
+	}
+
+	query := db.DB.Table("properties")
+
+	// 地址筛选
+	if req.Address.Province != 0 {
+		if req.Address.City == 1 {
+			query = query.Where("CAST(\"distinct\" AS TEXT) LIKE ?", fmt.Sprintf("%02d%%", req.Address.Province/10000))
+		} else if req.Address.Distinct == 0 {
+			query = query.Where("CAST(\"distinct\" AS TEXT) LIKE ?", fmt.Sprintf("%04d%%", req.Address.City/100))
+		} else {
+			query = query.Where("\"distinct\" = ?", req.Address.Distinct)
+		}
+	}
+
+	var priceValue = [][]float64{
+		{0, 100},
+		{100, 300},
+		{300, 500},
+		{500, 1000},
+		{1000, math.MaxFloat64},
+	}
+	// 价格筛选
+	if len(req.Price) > 0 {
+		priceConditions := make([]string, 0)
+		for i := 0; i < len(req.Price); i++ {
+			priceConditions = append(priceConditions, fmt.Sprintf("(price >= %f AND price < %f)", priceValue[req.Price[i]][0], priceValue[req.Price[i]][1]))
+		}
+		query = query.Where(strings.Join(priceConditions, " OR "))
+	}
+
+	var sizeValue = [][]float64{
+		{0, 50},
+		{50, 100},
+		{100, 150},
+		{150, 200},
+		{200, math.MaxFloat64},
+	}
+
+	// 面积筛选
+	if len(req.Size) > 0 {
+		sizeConditions := make([]string, 0)
+		for i := 0; i < len(req.Size); i++ {
+			sizeConditions = append(sizeConditions, fmt.Sprintf("(size >= %f AND size < %f)", sizeValue[req.Size[i]][0], sizeValue[req.Size[i]][1]))
+		}
+		query = query.Where(strings.Join(sizeConditions, " OR "))
+	}
+
+	// 其他条件筛选
+	if len(req.Special) > 0 {
+		query = query.Where("special IN ?", req.Special)
+	}
+	if len(req.Room) > 0 {
+		query = query.Where("room IN ?", req.Room)
+	}
+	if len(req.Direction) > 0 {
+		query = query.Where("direction IN ?", req.Direction)
+	}
+	if len(req.Height) > 0 {
+		query = query.Where("height IN ?", req.Height)
+	}
+	if len(req.Renovation) > 0 {
+		query = query.Where("renovation IN ?", req.Renovation)
+	}
+	if len(req.SubjectMatter) > 0 {
+		query = query.Where("subjectmatter IN ?", req.SubjectMatter)
+	}
+
+	var properties []models.Property
+	if err := query.Find(&properties).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50060,
+			"message": "failed to query properties: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	response, ok := getListResponseByProperties(c, properties)
+	if !ok {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20000,
+		"message": "successfully get selected properties",
 		"results": response,
 	})
 }

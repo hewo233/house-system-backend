@@ -42,5 +42,7 @@ func InitRoute(r *gin.Engine) {
 		house.POST("/create/image/:houseID", handler.CreatePropertyImage)
 		house.POST("/create/richtext/:houseID", handler.CreatePropertyRichText)
 		house.GET("/info/:houseID", handler.GetPropertyByID)
+		house.GET("/list", handler.ListProperty)
+		house.POST("/select", handler.SelectProperties)
 	}
 }
