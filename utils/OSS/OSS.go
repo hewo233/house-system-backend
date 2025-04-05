@@ -20,14 +20,13 @@ func GetFileURL(objectName string) string {
 }
 
 func UploadFileToOSS(ctx context.Context, category string, objectName string, fileReader io.Reader, fileSize int64, contentType string) (string, error) {
-	// 构建完整的对象名（包含分类路径）
 	fullObjectName := objectName
 	if category != "" {
-		fullObjectName = filepath.Join(category, objectName)
+		fullObjectName = filepath.Join(consts.OSSRootUrl, category, objectName)
 	}
 
 	// 上传文件到 Minio
-	_, err := minioClient.PutObject(context.Background(), bucket, fullObjectName, fileReader, fileSize, minio.PutObjectOptions{
+	_, err := minioClient.PutObject(ctx, bucket, fullObjectName, fileReader, fileSize, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 	if err != nil {
@@ -46,7 +45,6 @@ func UploadImageToOSS(ctx context.Context, file *multipart.FileHeader) (string, 
 
 	category := "images"
 
-	// 根据文件扩展名设置 ContentType
 	ext := filepath.Ext(file.Filename)
 	contentType := "application/octet-stream"
 

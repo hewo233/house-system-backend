@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/hewo233/house-system-backend/db"
@@ -8,6 +9,7 @@ import (
 	"github.com/hewo233/house-system-backend/shared/consts"
 	"github.com/hewo233/house-system-backend/utils/OSS"
 	"github.com/jinzhu/copier"
+	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 )
@@ -166,6 +168,26 @@ func CreatePropertyImage(c *gin.Context) {
 		return
 	}
 
+	// 验证房源是否已经上传过图片
+	var propertyImage models.PropertyImage
+	if err := db.DB.Table("property_images").Where("property_id=?", propertyID).First(&propertyImage).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50030,
+				"message": "failed to query property images: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40032,
+			"message": "property images already exist",
+		})
+		c.Abort()
+		return
+	}
+
 	// 获取上传的文件
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -192,7 +214,7 @@ func CreatePropertyImage(c *gin.Context) {
 			IsMain:     true, // 设为主图
 		}
 
-		if err := db.DB.Create(&defaultImage).Error; err != nil {
+		if err := db.DB.Table("property_images").Create(&defaultImage).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50035,
 				"message": "save default image error: " + err.Error(),
@@ -229,6 +251,16 @@ func CreatePropertyImage(c *gin.Context) {
 			URL:        url,
 			IsMain:     i == 0,
 		}
+
+		if err := db.DB.Table("property_images").Create(&image).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50037,
+				"message": "save image error: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+
 		uploadedImages = append(uploadedImages, image)
 	}
 
@@ -257,7 +289,7 @@ func CreatePropertyRichText(c *gin.Context) {
 
 	// 验证房源是否存在
 	var property models.Property
-	if err := db.DB.Table("properties").Where("property_id=?", propertyID).First(&property).Error; err != nil {
+	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40041,
 			"message": "property does not exist: " + err.Error(),
@@ -304,7 +336,7 @@ func CreatePropertyRichText(c *gin.Context) {
 	}
 
 	property.RichTextURL = url
-	if err := db.DB.Table("properties").Where("property_id=?", propertyID).Updates(property).Error; err != nil {
+	if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(property).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50041,
 			"message": "failed to create property rich text URL: " + err.Error(),
@@ -320,21 +352,19 @@ func CreatePropertyRichText(c *gin.Context) {
 }
 
 type GetPropertyByIDResponse struct {
-	Results struct {
-		Basic struct {
-			Address struct {
-				Distinct int    `json:"distinct"`
-				Details  string `json:"details"`
-			} `json:"address"`
-			Price      float64 `json:"price"`
-			Size       float64 `json:"size"`
-			Room       int     `json:"room"`
-			Direction  int     `json:"direction"`
-			UploadTime string  `json:"uploadTime"`
-		} `json:"basic"`
-		Images   []string `json:"images"`
-		RichText string   `json:"richText"`
-	} `json:"results"`
+	Basic struct {
+		Address struct {
+			Distinct int    `json:"distinct"`
+			Details  string `json:"details"`
+		} `json:"address"`
+		Price      float64 `json:"price"`
+		Size       float64 `json:"size"`
+		Room       int     `json:"room"`
+		Direction  int     `json:"direction"`
+		UploadTime string  `json:"uploadTime"`
+	} `json:"basic"`
+	Images   []string `json:"images"`
+	RichText string   `json:"richText"`
 }
 
 func GetPropertyByID(c *gin.Context) {
@@ -354,7 +384,7 @@ func GetPropertyByID(c *gin.Context) {
 	}
 
 	var property models.Property
-	if err := db.DB.Table("properties").Where("property_id=?", propertyID).First(&property).Error; err != nil {
+	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40051,
 			"message": "property does not exist: " + err.Error(),
@@ -379,15 +409,15 @@ func GetPropertyByID(c *gin.Context) {
 	}
 
 	var response GetPropertyByIDResponse
-	response.Results.Basic.Address.Distinct = property.Address.Distinct
-	response.Results.Basic.Address.Details = property.Address.Details
-	response.Results.Basic.Price = property.Price
-	response.Results.Basic.Size = property.Size
-	response.Results.Basic.Room = property.Room
-	response.Results.Basic.Direction = property.Direction
-	response.Results.Basic.UploadTime = property.CreatedAt.Format("2006-01-02 15:04:05")
-	response.Results.Images = imageUrls
-	response.Results.RichText = property.RichTextURL
+	response.Basic.Address.Distinct = property.Address.Distinct
+	response.Basic.Address.Details = property.Address.Details
+	response.Basic.Price = property.Price
+	response.Basic.Size = property.Size
+	response.Basic.Room = property.Room
+	response.Basic.Direction = property.Direction
+	response.Basic.UploadTime = property.CreatedAt.Format("2006-01-02 15:04:05")
+	response.Images = imageUrls
+	response.RichText = property.RichTextURL
 
 	c.JSON(http.StatusOK, gin.H{
 		"errno":   20000,
@@ -395,4 +425,65 @@ func GetPropertyByID(c *gin.Context) {
 		"results": response,
 	})
 
+}
+
+type ListPropertyResponse struct {
+	Cover      string  `json:"cover"`
+	Address    string  `json:"address"`
+	Price      float64 `json:"price"`
+	Size       float64 `json:"size"`
+	HouseID    uint    `json:"houseId"`
+	UploadTime string  `json:"uploadTime"`
+}
+
+func ListProperty(c *gin.Context) {
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
+	var properties []models.Property
+	if err := db.DB.Table("properties").Find(&properties).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50060,
+			"message": "failed to query properties: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	var response []ListPropertyResponse
+	for _, property := range properties {
+
+		propertyImage := models.NewPropertyImage()
+		if err := db.DB.Table("property_images").Where("property_id=? AND is_main=?", property.ID, true).First(propertyImage).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50061,
+				"message": "failed to query property images: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+
+		var cover string
+		if propertyImage != nil {
+			cover = propertyImage.URL
+		} else {
+			cover = consts.DefaultImageUrl
+		}
+
+		response = append(response, ListPropertyResponse{
+			Cover:      cover,
+			Address:    property.Address.Details,
+			Price:      property.Price,
+			Size:       property.Size,
+			HouseID:    property.ID,
+			UploadTime: property.CreatedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20000,
+		"message": "successfully get all properties",
+		"results": response,
+	})
 }
