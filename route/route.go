@@ -6,20 +6,26 @@ import (
 	"github.com/hewo233/house-system-backend/middleware"
 )
 
-func InitRoute(r *gin.Engine) {
+var R *gin.Engine
 
-	r.Use(middleware.CorsMiddleware())
+func InitRoute() {
 
-	r.GET("/ping", handler.Ping)
+	R = gin.New()
 
-	auth := r.Group("/auth")
+	R.Use(gin.Logger(), gin.Recovery())
+
+	R.Use(middleware.CorsMiddleware())
+
+	R.GET("/ping", handler.Ping)
+
+	auth := R.Group("/auth")
 	{
 		auth.POST("/register", handler.UserRegister)
 		auth.POST("/login", handler.UserLogin)
 		auth.POST("/admin/login", handler.AdminLogin)
 	}
 
-	user := r.Group("/user")
+	user := R.Group("/user")
 	user.Use(middleware.JWTAuth("user"))
 	{
 		user.GET("/info/:phone", handler.GetUserInfoByPhone)
@@ -27,7 +33,7 @@ func InitRoute(r *gin.Engine) {
 		user.GET("/list", handler.ListUser)
 	}
 
-	admin := r.Group("/admin")
+	admin := R.Group("/admin")
 	admin.Use(middleware.JWTAuth("admin"))
 	{
 		admin.GET("/info/:phone", handler.GetUserInfoByPhone)
@@ -35,7 +41,7 @@ func InitRoute(r *gin.Engine) {
 		admin.DELETE("/user/:phone", handler.AdminRemoveUserByPhone)
 	}
 
-	house := r.Group("/house")
+	house := R.Group("/house")
 	house.Use(middleware.JWTAuth("user"))
 	{
 		house.POST("/create/info", handler.CreatePropertyBaseInfo)
@@ -45,5 +51,9 @@ func InitRoute(r *gin.Engine) {
 		house.GET("/list", handler.ListProperty)
 		house.POST("/select", handler.SelectProperties)
 		house.GET("/search", handler.SearchPropertyByAddr)
+		house.PUT("/update/info/:houseID", handler.ModifyPropertyBaseInfo)
+		house.PUT("/update/image/:houseID", handler.ModifyPropertyImage)
+		house.PUT("/update/richtext/:houseID", handler.ModifyPropertyRichText)
+		house.DELETE("/delete/:houseID", handler.DeleteProperty)
 	}
 }

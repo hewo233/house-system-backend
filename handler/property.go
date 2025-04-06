@@ -684,3 +684,467 @@ func SearchPropertyByAddr(c *gin.Context) {
 		"results": response,
 	})
 }
+
+type ModifyPropertyBaseInfoRequest struct {
+	Address *struct {
+		Distinct *int    `json:"distinct"`
+		Details  *string `json:"details"`
+	} `json:"address"`
+	Direction     *int     `json:"direction"`
+	Height        *int     `json:"height"`
+	Price         *float64 `json:"price"`
+	Renovation    *int     `json:"renovation"`
+	Room          *int     `json:"room"`
+	Size          *float64 `json:"size"`
+	Special       *int     `json:"special"`
+	SubjectMatter *int     `json:"subjectmatter"`
+}
+
+func (req *ModifyPropertyBaseInfoRequest) Validate() (bool, string) {
+	// 验证地址
+	if req.Address != nil {
+		if req.Address.Distinct != nil {
+			if *req.Address.Distinct < 100000 || *req.Address.Distinct > 999999 {
+				return false, "地区编码必须是6位数字"
+			}
+		}
+
+		if req.Address.Details != nil {
+			if len(*req.Address.Details) == 0 {
+				return false, "地址详情不能为空"
+			}
+		}
+	}
+
+	// 验证其他字段
+	if req.Direction != nil {
+		if *req.Direction < 1 || *req.Direction > 10 {
+			return false, "朝向必须在1-10范围内"
+		}
+	}
+
+	if req.Height != nil {
+		if *req.Height < 1 || *req.Height > 3 {
+			return false, "楼层高度必须在1-3范围内"
+		}
+	}
+
+	if req.Price != nil {
+		if *req.Price <= 0 {
+			return false, "价格必须大于0"
+		}
+	}
+
+	if req.Renovation != nil {
+		if *req.Renovation < 1 || *req.Renovation > 4 {
+			return false, "装修状态必须在1-4范围内"
+		}
+	}
+
+	if req.Room != nil {
+		if *req.Room < 1 || *req.Room > 5 {
+			return false, "房间数必须在1-5范围内"
+		}
+	}
+
+	if req.Size != nil {
+		if *req.Size <= 0 {
+			return false, "面积必须大于0"
+		}
+	}
+
+	if req.Special != nil {
+		if *req.Special < 1 || *req.Special > 5 {
+			return false, "特殊类型必须在1-5范围内"
+		}
+	}
+
+	if req.SubjectMatter != nil {
+		if *req.SubjectMatter < 1 || *req.SubjectMatter > 4 {
+			return false, "标的物类型必须在1-4范围内"
+		}
+	}
+
+	return true, ""
+}
+
+func ModifyPropertyBaseInfo(c *gin.Context) {
+	// 验证用户
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
+	// 获取房产ID
+	propertyID := c.Param("houseID")
+	if propertyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40080,
+			"message": "property id cannot be empty",
+		})
+		c.Abort()
+		return
+	}
+
+	// 检查房产是否存在
+	var property models.Property
+	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40081,
+			"message": "property does not exist: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	// 解析请求体
+	var req ModifyPropertyBaseInfoRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40082,
+			"message": "failed to bind ModifyPropertyBaseInfo Request: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	// 验证请求
+	isValid, errMsg := req.Validate()
+	if !isValid {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40083,
+			"message": "invalid ModifyPropertyBaseInfo Request: " + errMsg,
+		})
+		c.Abort()
+		return
+	}
+
+	// 只更新非空字段
+	updates := map[string]interface{}{}
+
+	// 处理地址信息
+	if req.Address != nil {
+		if req.Address.Distinct != nil {
+			updates["distinct"] = *req.Address.Distinct
+		}
+		if req.Address.Details != nil {
+			updates["details"] = *req.Address.Details
+		}
+	}
+
+	// 处理其他字段
+	if req.Direction != nil {
+		updates["direction"] = *req.Direction
+	}
+	if req.Height != nil {
+		updates["height"] = *req.Height
+	}
+	if req.Price != nil {
+		updates["price"] = *req.Price
+	}
+	if req.Renovation != nil {
+		updates["renovation"] = *req.Renovation
+	}
+	if req.Room != nil {
+		updates["room"] = *req.Room
+	}
+	if req.Size != nil {
+		updates["size"] = *req.Size
+	}
+	if req.Special != nil {
+		updates["special"] = *req.Special
+	}
+	if req.SubjectMatter != nil {
+		updates["subjectmatter"] = *req.SubjectMatter
+	}
+
+	// 更新房产信息
+	if len(updates) > 0 {
+		if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50081,
+				"message": "failed to update property: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20080,
+		"message": "property updated successfully",
+		"houseID": property.ID,
+	})
+}
+
+func ModifyPropertyImage(c *gin.Context) {
+	// 验证用户
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
+	// 获取房产ID
+	propertyID := c.Param("houseID")
+	if propertyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40090,
+			"message": "property id cannot be empty",
+		})
+		c.Abort()
+		return
+	}
+
+	// 验证房源是否存在
+	var property models.Property
+	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40091,
+			"message": "property does not exist: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	// 获取上传的文件
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40092,
+			"message": "parse form error: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	files := form.File["images"]
+
+	// 开始事务
+	tx := db.DB.Begin()
+
+	// 先删除原有图片
+	if err := tx.Where("property_id=?", propertyID).Delete(&models.PropertyImage{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50090,
+			"message": "failed to delete old images: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	// 如果没有上传任何图片，使用默认图片
+	if len(files) == 0 {
+		// 添加默认图片
+		propertyIDUint, _ := strconv.ParseUint(propertyID, 10, 32)
+		defaultImage := models.PropertyImage{
+			PropertyID: uint(propertyIDUint),
+			URL:        consts.DefaultImageUrl,
+			IsMain:     true, // 设为主图
+		}
+
+		if err := tx.Table("property_images").Create(&defaultImage).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50091,
+				"message": "save default image error: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+
+		tx.Commit()
+		c.JSON(http.StatusOK, gin.H{
+			"errno":   20090,
+			"message": "successfully reset to default image",
+			"image":   defaultImage,
+		})
+		return
+	}
+
+	var uploadedImages []models.PropertyImage
+
+	for i, file := range files {
+		url, err := OSS.UploadImageToOSS(c, file)
+		if err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50092,
+				"message": "OSS upload image error: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+
+		propertyIDUint, _ := strconv.ParseUint(propertyID, 10, 32)
+		image := models.PropertyImage{
+			PropertyID: uint(propertyIDUint),
+			URL:        url,
+			IsMain:     i == 0, // 第一张为主图
+		}
+
+		if err := tx.Table("property_images").Create(&image).Error; err != nil {
+			tx.Rollback()
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50093,
+				"message": "save new image error: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+
+		uploadedImages = append(uploadedImages, image)
+	}
+
+	tx.Commit()
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20091,
+		"message": "successfully modified property images",
+		"images":  uploadedImages,
+	})
+}
+
+func ModifyPropertyRichText(c *gin.Context) {
+	// 验证用户
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
+	// 获取房产ID
+	propertyID := c.Param("houseID")
+	if propertyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40100,
+			"message": "property id cannot be empty",
+		})
+		c.Abort()
+		return
+	}
+
+	// 验证房源是否存在
+	var property models.Property
+	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40101,
+			"message": "property does not exist: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40102,
+			"message": "parse form error: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	files := form.File["richText"]
+
+	// 如果没有上传文件，设置为默认富文本
+	if len(files) == 0 {
+		property.RichTextURL = consts.DefaultHTMLUrl
+		if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(property).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50100,
+				"message": "failed to update property rich text URL: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"errno":       20100,
+			"message":     "successfully reset to default rich text",
+			"richTextURL": consts.DefaultHTMLUrl,
+		})
+		return
+	}
+
+	richText := files[0]
+
+	if richText == nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40103,
+			"message": "richText cannot be empty",
+		})
+		c.Abort()
+		return
+	}
+
+	if richText.Header.Get("Content-Type") != "text/html" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40104,
+			"message": "richText must be a HTML file",
+		})
+		c.Abort()
+		return
+	}
+
+	url, err := OSS.UploadHTMLToOSS(c, richText)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50101,
+			"message": "failed to upload html file: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	property.RichTextURL = url
+	if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(property).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50102,
+			"message": "failed to update property rich text URL: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":       20101,
+		"message":     "successfully updated property rich text",
+		"richTextURL": url,
+	})
+}
+
+func DeleteProperty(c *gin.Context) {
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
+	propertyID := c.Param("houseID")
+	if propertyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40110,
+			"message": "property id cannot be empty",
+		})
+		c.Abort()
+		return
+	}
+
+	if err := db.DB.Table("properties").Where("id=?", propertyID).Delete(&models.Property{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50110,
+			"message": "failed to delete property: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	if err := db.DB.Table("property_images").Where("property_id=?", propertyID).Delete(&models.PropertyImage{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50111,
+			"message": "failed to delete property images: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20110,
+		"message": "property deleted successfully",
+	})
+}
