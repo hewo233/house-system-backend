@@ -336,6 +336,7 @@ func CreatePropertyRichText(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"errno":   20000,
 			"message": "successfully created property by default richText",
+			"url":     url,
 		})
 	}
 
@@ -545,6 +546,71 @@ type SelectPropertiesRequest struct {
 	SubjectMatter []int `json:"subjectmatter"`
 }
 
+func (req *SelectPropertiesRequest) Validate() (bool, string) {
+	// 地址筛选
+	if req.Address.Province < 0 || req.Address.Province > 999999 {
+		return false, "省份编码必须在0-999999范围内"
+	}
+	if req.Address.City < 0 || req.Address.City > 999999 {
+		return false, "城市编码必须在0-999999范围内"
+	}
+	if req.Address.Distinct < 0 || req.Address.Distinct > 999999 {
+		return false, "地区编码必须在0-999999范围内"
+	}
+
+	// 价格筛选
+	for _, price := range req.Price {
+		if price < 0 || price > 5 {
+			return false, "价格筛选值必须在0-5范围内"
+		}
+	}
+
+	// 面积筛选
+	for _, size := range req.Size {
+		if size < 0 || size > 5 {
+			return false, "面积筛选值必须在0-5范围内"
+		}
+	}
+
+	for _, special := range req.Special {
+		if special < 0 || special > 5 {
+			return false, "特殊类型筛选值必须在0-5范围内"
+		}
+	}
+
+	for _, room := range req.Room {
+		if room < 0 || room > 5 {
+			return false, "房间数筛选值必须在0-5范围内"
+		}
+	}
+
+	for _, direction := range req.Direction {
+		if direction < 0 || direction > 10 {
+			return false, "朝向筛选值必须在0-10范围内"
+		}
+	}
+
+	for _, height := range req.Height {
+		if height < 0 || height > 3 {
+			return false, "楼层高度筛选值必须在0-3范围内"
+		}
+	}
+
+	for _, renovation := range req.Renovation {
+		if renovation < 0 || renovation > 4 {
+			return false, "装修状态筛选值必须在0-4范围内"
+		}
+	}
+
+	for _, subjectMatter := range req.SubjectMatter {
+		if subjectMatter < 0 || subjectMatter > 4 {
+			return false, "标的物类型筛选值必须在0-4范围内"
+		}
+	}
+
+	return true, ""
+}
+
 func SelectProperties(c *gin.Context) {
 	var req SelectPropertiesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -569,6 +635,7 @@ func SelectProperties(c *gin.Context) {
 	}
 
 	var priceValue = [][]float64{
+		{0, 0},
 		{0, 100},
 		{100, 300},
 		{300, 500},
@@ -585,6 +652,7 @@ func SelectProperties(c *gin.Context) {
 	}
 
 	var sizeValue = [][]float64{
+		{0, 0},
 		{0, 50},
 		{50, 100},
 		{100, 150},
