@@ -642,3 +642,45 @@ func SelectProperties(c *gin.Context) {
 		"results": response,
 	})
 }
+
+func SearchPropertyByAddr(c *gin.Context) {
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
+	address := c.Query("address")
+	if address == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40060,
+			"message": "address cannot be empty",
+		})
+		c.Abort()
+		return
+	}
+
+	searchTerm := strings.TrimSpace(address)
+
+	fmt.Println(searchTerm)
+
+	var properties []models.Property
+	if err := db.DB.Table("properties").Where("details ILIKE ?", "%"+searchTerm+"%").Find(&properties).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50060,
+			"message": "failed to query properties: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	var response []ListPropertyResponse
+	response, ok := getListResponseByProperties(c, properties)
+	if !ok {
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20000,
+		"message": "successfully get properties by address",
+		"results": response,
+	})
+}

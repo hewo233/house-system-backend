@@ -44,5 +44,6 @@ func InitRoute(r *gin.Engine) {
 		house.GET("/info/:houseID", handler.GetPropertyByID)
 		house.GET("/list", handler.ListProperty)
 		house.POST("/select", handler.SelectProperties)
+		house.GET("/search", handler.SearchPropertyByAddr)
 	}
 }
