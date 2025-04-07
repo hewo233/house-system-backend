@@ -38,7 +38,8 @@ func InitRoute() {
 	{
 		admin.GET("/info/:phone", handler.GetUserInfoByPhone)
 		admin.GET("/list", handler.ListUser)
-		admin.DELETE("/user/:phone", handler.AdminRemoveUserByPhone)
+		admin.DELETE("/delete/user/:phone", handler.AdminRemoveUserByPhone)
+		admin.POST("/invite_code", handler.AdminModifyInviteCode)
 	}
 
 	house := R.Group("/house")
@@ -55,5 +56,14 @@ func InitRoute() {
 		house.PUT("/update/image/:houseID", handler.ModifyPropertyImage)
 		house.PUT("/update/richtext/:houseID", handler.ModifyPropertyRichText)
 		house.DELETE("/delete/:houseID", handler.DeleteProperty)
+	}
+
+	customer := R.Group("/customer")
+	customer.Use(middleware.JWTAuth("user"))
+	{
+		customer.POST("/create", handler.CreateCustomer)
+		customer.GET("/list", handler.ListCustomers)
+		customer.PUT("/update/:customer_id", handler.ModifyCustomers)
+		customer.DELETE("/delete/:customer_id", handler.DeleteCustomers)
 	}
 }

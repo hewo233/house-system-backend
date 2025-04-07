@@ -188,15 +188,18 @@ func AdminModifyInviteCode(c *gin.Context) {
 		return
 	}
 
-	inviteCode := c.Param("invite_code")
-	if len(inviteCode) != 6 {
+	var req struct {
+		InviteCode string `json:"invite_code" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"errno":   40014,
-			"message": "invalid invite code",
+			"errno":   40010,
+			"message": "failed to bind request: " + err.Error(),
 		})
 		c.Abort()
 		return
 	}
+	inviteCode := req.InviteCode
 
 	if err := db.DB.Table(consts.InviteCodeTable).Where("id = ?", 1).First(&models.InviteCode{}).Error; err != nil {
 		if err.Error() == "record not found" {
