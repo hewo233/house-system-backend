@@ -48,7 +48,7 @@ func UserRegister(c *gin.Context) {
 	}
 
 	existingUser := models.NewUser()
-	result := db.DB.Table("users").Where("phone = ?", req.Phone).Limit(1).Find(existingUser)
+	result := db.DB.Table(consts.UserTable).Where("phone = ?", req.Phone).Limit(1).Find(existingUser)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50000,
@@ -84,7 +84,7 @@ func UserRegister(c *gin.Context) {
 		Role:     "user",
 	}
 
-	if err := db.DB.Table("users").Create(&newUser).Error; err != nil {
+	if err := db.DB.Table(consts.UserTable).Create(&newUser).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50002,
 			"message": "failed to create user: " + err.Error(),
