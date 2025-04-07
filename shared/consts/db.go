@@ -5,4 +5,5 @@ const (
 	PropertyTable      = "properties"
 	PropertyImageTable = "property_images"
 	InviteCodeTable    = "invite_codes"
+	CustomerTable      = "customers"
 )

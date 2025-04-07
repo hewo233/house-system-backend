@@ -25,6 +25,13 @@ func UpdateDB() {
 		log.Fatal(err)
 	}
 	err = DB.Table(consts.InviteCodeTable).AutoMigrate(&models.InviteCode{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = DB.Table(consts.CustomerTable).AutoMigrate(&models.Customer{})
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Println("\033[32mAutoMigrate success\033[0m")
 }
 
