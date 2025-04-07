@@ -352,7 +352,8 @@ func ModifyUserSelf(c *gin.Context) {
 }
 
 type ListUserResponse struct {
-	Results []models.User `json:"users"`
+	Phone    string `json:"phone"`
+	Username string `json:"username"`
 }
 
 func ListUser(c *gin.Context) {
@@ -373,13 +374,18 @@ func ListUser(c *gin.Context) {
 		return
 	}
 
-	rep := ListUserResponse{
-		Results: users,
+	var rep []ListUserResponse
+
+	for _, user := range users {
+		rep = append(rep, ListUserResponse{
+			Phone:    user.Phone,
+			Username: user.Username,
+		})
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"errno":   20000,
 		"message": "get user list successfully",
-		"result":  rep,
+		"results": rep,
 	})
 }

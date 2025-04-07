@@ -21,7 +21,7 @@ func CreateCustomer(c *gin.Context) {
 
 	//  查找 customer_id 是否存在
 	existingCustomer := models.NewCustomer()
-	result := db.DB.Table("customer").Where("customer_id = ?", req.CustomerID).Limit(1).Find(existingCustomer)
+	result := db.DB.Table(consts.CustomerTable).Where("customer_id = ?", req.CustomerID).Limit(1).Find(existingCustomer)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50080,
@@ -40,7 +40,7 @@ func CreateCustomer(c *gin.Context) {
 	}
 
 	// 创建 customer
-	if err := db.DB.Table("customer").Create(req).Error; err != nil {
+	if err := db.DB.Table(consts.CustomerTable).Create(req).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50081,
 			"message": "failed to create customer: " + err.Error(),
@@ -74,6 +74,9 @@ func ListCustomers(c *gin.Context) {
 	})
 }
 func ModifyCustomers(c *gin.Context) {
+
+	customerID := c.Param("customer_id")
+
 	req := models.NewCustomer()
 	if err := c.ShouldBindJSON(req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -84,7 +87,7 @@ func ModifyCustomers(c *gin.Context) {
 		return
 	}
 
-	result := db.DB.Table(consts.CustomerTable).Where("customer_id = ?", req.CustomerID).Updates(req)
+	result := db.DB.Table(consts.CustomerTable).Where("customer_id = ?", customerID).Updates(req)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50083,
