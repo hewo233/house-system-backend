@@ -31,6 +31,7 @@ RUN mkdir -p db utils/OSS
 # 复制配置文件（保持相对路径）
 COPY db/.env db/
 COPY utils/OSS/.env utils/OSS/
+COPY config/.admin config/
 
 EXPOSE 8080
 

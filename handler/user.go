@@ -28,8 +28,18 @@ func UserRegister(c *gin.Context) {
 		return
 	}
 
-	// TODO: change invite code to a global var can be modify by admin
-	if req.InviteCode != "invite" {
+	correctInviteCodeModel := models.InviteCode{}
+	result := db.DB.Table(consts.InviteCodeTable).Where("id = ?", 1).First(&correctInviteCodeModel)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50000,
+			"message": "failed to query database: " + result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	if req.InviteCode != correctInviteCodeModel.Code {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40001,
 			"message": "invalid invite code",
@@ -48,7 +58,7 @@ func UserRegister(c *gin.Context) {
 	}
 
 	existingUser := models.NewUser()
-	result := db.DB.Table(consts.UserTable).Where("phone = ?", req.Phone).Limit(1).Find(existingUser)
+	result = db.DB.Table(consts.UserTable).Where("phone = ?", req.Phone).Limit(1).Find(existingUser)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50000,

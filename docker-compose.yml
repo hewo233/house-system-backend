@@ -15,4 +15,5 @@ services:
     volumes:
       - ./db/.env:/app/db/.env:ro
       - ./utils/OSS/.env:/app/utils/OSS/.env:ro
+      - ./config/.admin:/app/config/.admin:ro
     restart: unless-stopped

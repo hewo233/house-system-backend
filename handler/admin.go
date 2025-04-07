@@ -16,7 +16,7 @@ import (
 )
 
 func getAdminPassword() (string, error) {
-	file, err := os.Open("config/.admin")
+	file, err := os.Open(consts.AdminPassFile)
 	if err != nil {
 		return "", err
 	}
