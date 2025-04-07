@@ -188,7 +188,7 @@ func UserLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"errno":   20000,
 		"message": "login successfully",
-		"result":  rep,
+		"results": rep,
 	})
 
 }
