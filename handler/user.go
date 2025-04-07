@@ -105,8 +105,11 @@ type UserLoginRequest struct {
 }
 
 type UserLoginResponse struct {
+	User struct {
+		Phone    string `json:"phone"`
+		Username string `json:"username"`
+	} `json:"user"`
 	Token string `json:"token"`
-	User  models.User
 }
 
 func UserLogin(c *gin.Context) {
@@ -131,7 +134,7 @@ func UserLogin(c *gin.Context) {
 
 	user := models.NewUser()
 
-	result := db.DB.Table("users").Where("phone = ?", req.Phone).First(user)
+	result := db.DB.Table(consts.UserTable).Where("phone = ?", req.Phone).First(user)
 	if result.Error != nil {
 		if result.Error.Error() == "record not found" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -169,7 +172,8 @@ func UserLogin(c *gin.Context) {
 
 	var rep UserLoginResponse
 	rep.Token = jwtToken
-	rep.User = *user
+	rep.User.Username = user.Username
+	rep.User.Phone = user.Phone
 
 	c.JSON(http.StatusOK, gin.H{
 		"errno":   20000,
@@ -223,7 +227,7 @@ func GetUserInfoByPhone(c *gin.Context) {
 		return
 	}
 
-	result := db.DB.Table("users").Where("phone = ?", phone).First(&user)
+	result := db.DB.Table(consts.UserTable).Where("phone = ?", phone).First(&user)
 	if result.Error != nil {
 		if result.Error.Error() == "record not found" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -322,7 +326,7 @@ func ModifyUserSelf(c *gin.Context) {
 		user.Password = hashedPassword
 	}
 
-	if err := db.DB.Table("users").Save(&user).Error; err != nil {
+	if err := db.DB.Table(consts.UserTable).Save(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50011,
 			"message": "failed to update user: " + err.Error(),
@@ -349,7 +353,7 @@ func ListUser(c *gin.Context) {
 
 	var users []models.User
 
-	result := db.DB.Table("users").Find(&users)
+	result := db.DB.Table(consts.UserTable).Find(&users)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50007,

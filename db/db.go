@@ -21,6 +21,10 @@ func UpdateDB() {
 		log.Fatal(err)
 	}
 	err = DB.Table(consts.PropertyImageTable).AutoMigrate(&models.PropertyImage{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = DB.Table(consts.InviteCodeTable).AutoMigrate(&models.InviteCode{})
 	log.Println("\033[32mAutoMigrate success\033[0m")
 }
 
@@ -45,4 +49,3 @@ func ConnectDB() {
 		log.Fatal("failed to connect database")
 	}
 }
-

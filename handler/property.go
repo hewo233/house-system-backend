@@ -127,7 +127,7 @@ func CreatePropertyBaseInfo(c *gin.Context) {
 
 	newProperty.RichTextURL = ""
 
-	if err := db.DB.Table("properties").Create(newProperty).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Create(newProperty).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50021,
 			"message": "failed to create property: " + err.Error(),
@@ -161,7 +161,7 @@ func CreatePropertyImage(c *gin.Context) {
 
 	// 验证房源是否存在
 	var property models.Property
-	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40031,
 			"message": "id do not exits: " + err.Error(),
@@ -172,7 +172,7 @@ func CreatePropertyImage(c *gin.Context) {
 
 	// 验证房源是否已经上传过图片
 	var propertyImage models.PropertyImage
-	if err := db.DB.Table("property_images").Where("property_id=?", propertyID).First(&propertyImage).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyImageTable).Where("property_id=?", propertyID).First(&propertyImage).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50030,
@@ -216,7 +216,7 @@ func CreatePropertyImage(c *gin.Context) {
 			IsMain:     true, // 设为主图
 		}
 
-		if err := db.DB.Table("property_images").Create(&defaultImage).Error; err != nil {
+		if err := db.DB.Table(consts.PropertyImageTable).Create(&defaultImage).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50035,
 				"message": "save default image error: " + err.Error(),
@@ -254,7 +254,7 @@ func CreatePropertyImage(c *gin.Context) {
 			IsMain:     i == 0,
 		}
 
-		if err := db.DB.Table("property_images").Create(&image).Error; err != nil {
+		if err := db.DB.Table(consts.PropertyImageTable).Create(&image).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50037,
 				"message": "save image error: " + err.Error(),
@@ -291,7 +291,7 @@ func CreatePropertyRichText(c *gin.Context) {
 
 	// 验证房源是否存在
 	var property models.Property
-	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40041,
 			"message": "property does not exist: " + err.Error(),
@@ -324,7 +324,7 @@ func CreatePropertyRichText(c *gin.Context) {
 	if len(files) == 0 {
 		url := consts.DefaultHTMLUrl
 		property.RichTextURL = url
-		if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(property).Error; err != nil {
+		if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).Updates(property).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50041,
 				"message": "failed to create property rich text URL: " + err.Error(),
@@ -368,7 +368,7 @@ func CreatePropertyRichText(c *gin.Context) {
 	}
 
 	property.RichTextURL = url
-	if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(property).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).Updates(property).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50041,
 			"message": "failed to create property rich text URL: " + err.Error(),
@@ -416,7 +416,7 @@ func GetPropertyByID(c *gin.Context) {
 	}
 
 	var property models.Property
-	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40051,
 			"message": "property does not exist: " + err.Error(),
@@ -426,7 +426,7 @@ func GetPropertyByID(c *gin.Context) {
 	}
 
 	var propertyImages []models.PropertyImage
-	if err := db.DB.Table("property_images").Where("property_id=?", propertyID).Find(&propertyImages).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyImageTable).Where("property_id=?", propertyID).Find(&propertyImages).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50050,
 			"message": "failed to query property images: " + err.Error(),
@@ -473,7 +473,7 @@ func getListResponseByProperties(c *gin.Context, properties []models.Property) (
 	for _, property := range properties {
 
 		propertyImage := models.NewPropertyImage()
-		if err := db.DB.Table("property_images").Where("property_id=? AND is_main=?", property.ID, true).First(propertyImage).Error; err != nil {
+		if err := db.DB.Table(consts.PropertyImageTable).Where("property_id=? AND is_main=?", property.ID, true).First(propertyImage).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50061,
 				"message": "failed to query property images: " + err.Error(),
@@ -508,7 +508,7 @@ func ListProperty(c *gin.Context) {
 	}
 
 	var properties []models.Property
-	if err := db.DB.Table("properties").Find(&properties).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Find(&properties).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50060,
 			"message": "failed to query properties: " + err.Error(),
@@ -621,7 +621,7 @@ func SelectProperties(c *gin.Context) {
 		return
 	}
 
-	query := db.DB.Table("properties")
+	query := db.DB.Table(consts.PropertyTable)
 
 	// 地址筛选
 	if req.Address.Province != 0 {
@@ -731,7 +731,7 @@ func SearchPropertyByAddr(c *gin.Context) {
 	fmt.Println(searchTerm)
 
 	var properties []models.Property
-	if err := db.DB.Table("properties").Where("details ILIKE ?", "%"+searchTerm+"%").Find(&properties).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("details ILIKE ?", "%"+searchTerm+"%").Find(&properties).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50060,
 			"message": "failed to query properties: " + err.Error(),
@@ -855,7 +855,7 @@ func ModifyPropertyBaseInfo(c *gin.Context) {
 
 	// 检查房产是否存在
 	var property models.Property
-	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40081,
 			"message": "property does not exist: " + err.Error(),
@@ -927,7 +927,7 @@ func ModifyPropertyBaseInfo(c *gin.Context) {
 
 	// 更新房产信息
 	if len(updates) > 0 {
-		if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(updates).Error; err != nil {
+		if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).Updates(updates).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50081,
 				"message": "failed to update property: " + err.Error(),
@@ -963,7 +963,7 @@ func ModifyPropertyImage(c *gin.Context) {
 
 	// 验证房源是否存在
 	var property models.Property
-	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40091,
 			"message": "property does not exist: " + err.Error(),
@@ -989,7 +989,7 @@ func ModifyPropertyImage(c *gin.Context) {
 	tx := db.DB.Begin()
 
 	// 先删除原有图片
-	if err := tx.Where("property_id=?", propertyID).Delete(&models.PropertyImage{}).Error; err != nil {
+	if err := tx.Table(consts.PropertyImageTable).Where("property_id=?", propertyID).Delete(&models.PropertyImage{}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50090,
@@ -1009,7 +1009,7 @@ func ModifyPropertyImage(c *gin.Context) {
 			IsMain:     true, // 设为主图
 		}
 
-		if err := tx.Table("property_images").Create(&defaultImage).Error; err != nil {
+		if err := tx.Table(consts.PropertyImageTable).Create(&defaultImage).Error; err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50091,
@@ -1049,7 +1049,7 @@ func ModifyPropertyImage(c *gin.Context) {
 			IsMain:     i == 0, // 第一张为主图
 		}
 
-		if err := tx.Table("property_images").Create(&image).Error; err != nil {
+		if err := tx.Table(consts.PropertyImageTable).Create(&image).Error; err != nil {
 			tx.Rollback()
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50093,
@@ -1090,7 +1090,7 @@ func ModifyPropertyRichText(c *gin.Context) {
 
 	// 验证房源是否存在
 	var property models.Property
-	if err := db.DB.Table("properties").Where("id=?", propertyID).First(&property).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).First(&property).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40101,
 			"message": "property does not exist: " + err.Error(),
@@ -1114,7 +1114,7 @@ func ModifyPropertyRichText(c *gin.Context) {
 	// 如果没有上传文件，设置为默认富文本
 	if len(files) == 0 {
 		property.RichTextURL = consts.DefaultHTMLUrl
-		if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(property).Error; err != nil {
+		if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).Updates(property).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50100,
 				"message": "failed to update property rich text URL: " + err.Error(),
@@ -1162,7 +1162,7 @@ func ModifyPropertyRichText(c *gin.Context) {
 	}
 
 	property.RichTextURL = url
-	if err := db.DB.Table("properties").Where("id=?", propertyID).Updates(property).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).Updates(property).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50102,
 			"message": "failed to update property rich text URL: " + err.Error(),
@@ -1193,7 +1193,7 @@ func DeleteProperty(c *gin.Context) {
 		return
 	}
 
-	if err := db.DB.Table("properties").Where("id=?", propertyID).Delete(&models.Property{}).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyTable).Where("id=?", propertyID).Delete(&models.Property{}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50110,
 			"message": "failed to delete property: " + err.Error(),
@@ -1202,7 +1202,7 @@ func DeleteProperty(c *gin.Context) {
 		return
 	}
 
-	if err := db.DB.Table("property_images").Where("property_id=?", propertyID).Delete(&models.PropertyImage{}).Error; err != nil {
+	if err := db.DB.Table(consts.PropertyImageTable).Where("property_id=?", propertyID).Delete(&models.PropertyImage{}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50111,
 			"message": "failed to delete property images: " + err.Error(),

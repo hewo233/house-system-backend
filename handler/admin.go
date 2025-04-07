@@ -147,7 +147,7 @@ func AdminRemoveUserByPhone(c *gin.Context) {
 	}
 
 	user := models.NewUser()
-	result := db.DB.Table("users").Where("phone = ?", phone).First(user)
+	result := db.DB.Table(consts.UserTable).Where("phone = ?", phone).First(user)
 	if result.Error != nil {
 		if result.Error.Error() == "record not found" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -165,7 +165,7 @@ func AdminRemoveUserByPhone(c *gin.Context) {
 	}
 
 	log.Println("Deleting user: ", user.Phone)
-	result = db.DB.Table("users").Where("phone = ?", phone).Delete(user)
+	result = db.DB.Table(consts.UserTable).Where("phone = ?", phone).Delete(user)
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"errno":   50017,
@@ -181,4 +181,61 @@ func AdminRemoveUserByPhone(c *gin.Context) {
 		"user":    user, // 最后一面(
 	})
 
+}
+
+func AdminModifyInviteCode(c *gin.Context) {
+	if ok := CheckAdmin(c); !ok {
+		return
+	}
+
+	inviteCode := c.Param("invite_code")
+	if len(inviteCode) != 6 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40014,
+			"message": "invalid invite code",
+		})
+		c.Abort()
+		return
+	}
+
+	if err := db.DB.Table(consts.InviteCodeTable).Where("id = ?", 1).First(&models.InviteCode{}).Error; err != nil {
+		if err.Error() == "record not found" {
+			// create
+			inviteCodeModel := models.InviteCode{
+				Code: inviteCode,
+			}
+			if err := db.DB.Table(consts.InviteCodeTable).Create(&inviteCodeModel).Error; err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"errno":   50018,
+					"message": "failed to create invite code: " + err.Error(),
+				})
+				c.Abort()
+				return
+			}
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"errno":   50019,
+				"message": "failed to query database: " + err.Error(),
+			})
+			c.Abort()
+			return
+		}
+	}
+
+	// update
+	inviteCodeModel := models.InviteCode{
+		Code: inviteCode,
+	}
+	if err := db.DB.Table(consts.InviteCodeTable).Where("id = ?", 1).Updates(&inviteCodeModel).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50020,
+			"message": "failed to update invite code: " + err.Error(),
+		})
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20000,
+		"message": "update invite code successfully",
+	})
 }
