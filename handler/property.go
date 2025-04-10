@@ -71,8 +71,8 @@ func (req *CreatePropertyBaseInfoRequest) Validate() (bool, string) {
 	}
 
 	// 检查Room范围 (1-5)
-	if req.Room < 1 || req.Room > 5 {
-		return false, "房间数必须在1-5范围内"
+	if req.Room < 1 || req.Room > 11 {
+		return false, "房间类型必须在1-11范围内"
 	}
 
 	// 检查Size > 0
@@ -617,8 +617,8 @@ func (req *SelectPropertiesRequest) Validate() (bool, string) {
 	}
 
 	for _, room := range req.Room {
-		if room < 0 || room > 5 {
-			return false, "房间数筛选值必须在0-5范围内"
+		if room < 0 || room > 11 {
+			return false, "房间数筛选值必须在0-11范围内"
 		}
 	}
 
@@ -874,8 +874,8 @@ func (req *ModifyPropertyBaseInfoRequest) Validate() (bool, string) {
 	}
 
 	if req.Room != nil {
-		if *req.Room < 1 || *req.Room > 5 {
-			return false, "房间数必须在1-5范围内"
+		if *req.Room < 1 || *req.Room > 11 {
+			return false, "房间类型必须在1-11范围内"
 		}
 	}
 
