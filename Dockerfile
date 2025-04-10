@@ -5,6 +5,9 @@ WORKDIR /app
 
 #ENV GOPROXY="https://goproxy.cn,direct"
 
+ENV HTTP_PROXY=http://localhost:7890
+ENV HTTPS_PROXY=http://localhost:7890
+
 # 复制依赖文件
 COPY go.mod go.sum ./
 RUN go mod download
