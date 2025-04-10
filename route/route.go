@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hewo233/house-system-backend/handler"
 	"github.com/hewo233/house-system-backend/middleware"
+	"github.com/hewo233/house-system-backend/shared/consts"
 )
 
 var R *gin.Engine
@@ -34,16 +35,20 @@ func InitRoute() {
 	}
 
 	admin := R.Group("/admin")
-	admin.Use(middleware.JWTAuth("admin"))
+	admin.Use(middleware.JWTAuth(consts.Admin))
 	{
 		admin.GET("/info/:phone", handler.GetUserInfoByPhone)
 		admin.GET("/list", handler.ListUser)
 		admin.DELETE("/delete/user/:phone", handler.AdminRemoveUserByPhone)
 		admin.POST("/invite_code", handler.AdminModifyInviteCode)
+
+		admin.GET("/customer/list", handler.AdminListCustomers)
+		admin.PUT("/customer/update/:customer_id", handler.ModifyCustomers)
+		admin.DELETE("/customer/delete/:customer_id", handler.DeleteCustomers)
 	}
 
 	house := R.Group("/house")
-	house.Use(middleware.JWTAuth("user"))
+	house.Use(middleware.JWTAuth(consts.User))
 	{
 		house.POST("/create/info", handler.CreatePropertyBaseInfo)
 		house.POST("/create/image/:houseID", handler.CreatePropertyImage)
@@ -59,11 +64,9 @@ func InitRoute() {
 	}
 
 	customer := R.Group("/customer")
-	customer.Use(middleware.JWTAuth("user"))
+	customer.Use(middleware.JWTAuth(consts.User))
 	{
 		customer.POST("/create", handler.CreateCustomer)
-		customer.GET("/list", handler.ListCustomers)
-		customer.PUT("/update/:customer_id", handler.ModifyCustomers)
-		customer.DELETE("/delete/:customer_id", handler.DeleteCustomers)
+		customer.GET("/list", handler.UserListCustomers)
 	}
 }

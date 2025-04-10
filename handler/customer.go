@@ -9,6 +9,11 @@ import (
 )
 
 func CreateCustomer(c *gin.Context) {
+
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
 	req := models.NewCustomer()
 	if err := c.ShouldBindJSON(req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -55,7 +60,40 @@ func CreateCustomer(c *gin.Context) {
 	})
 }
 
-func ListCustomers(c *gin.Context) {
+func UserListCustomers(c *gin.Context) {
+
+	if ok := CheckUser(c); !ok {
+		return
+	}
+
+	customers := make([]models.Customer, 0)
+	result := db.DB.Table(consts.CustomerTable).Omit("phone").Find(&customers)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50082,
+			"message": "failed to query database: " + result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+
+	for i := range customers {
+		customers[i].Phone = "***********"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"errno":   20000,
+		"message": "list customer successfully",
+		"results": customers,
+	})
+}
+
+func AdminListCustomers(c *gin.Context) {
+
+	if ok := CheckAdmin(c); !ok {
+		return
+	}
+
 	customers := make([]models.Customer, 0)
 	result := db.DB.Table(consts.CustomerTable).Find(&customers)
 	if result.Error != nil {
@@ -73,7 +111,12 @@ func ListCustomers(c *gin.Context) {
 		"results": customers,
 	})
 }
+
 func ModifyCustomers(c *gin.Context) {
+
+	if ok := CheckAdmin(c); !ok {
+		return
+	}
 
 	customerID := c.Param("customer_id")
 
@@ -113,6 +156,11 @@ func ModifyCustomers(c *gin.Context) {
 }
 
 func DeleteCustomers(c *gin.Context) {
+
+	if ok := CheckAdmin(c); !ok {
+		return
+	}
+
 	customerID := c.Param("customer_id")
 	if customerID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
