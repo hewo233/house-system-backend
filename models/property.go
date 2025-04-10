@@ -9,10 +9,10 @@ type Address struct {
 
 type Property struct {
 	gorm.Model
-	Address       Address `json:"address" gorm:"embedded"`                        // 6bit
-	Direction     int     `json:"direction" gorm:"column:direction;not null"`     // 10
-	Height        int     `json:"height" gorm:"column:height;not null"`           // int
-	TotalHeight   int     `json:"totalHeight" gorm:"column:totalHeight;not null"` // int
+	Address       Address `json:"address" gorm:"embedded"`                                   // 6bit
+	Direction     int     `json:"direction" gorm:"column:direction;not null"`                // 10
+	Height        int     `json:"height" gorm:"column:height;not null"`                      // int
+	TotalHeight   int     `json:"totalHeight" gorm:"column:totalHeight;not null;default:10"` // int
 	Price         float64 `json:"price" gorm:"column:price;not null"`
 	Renovation    int     `json:"renovation" gorm:"column:renovation;not null"` // 4
 	Room          int     `json:"room" gorm:"column:room;not null"`             // 11

@@ -56,6 +56,10 @@ func (req *CreatePropertyBaseInfoRequest) Validate() (bool, string) {
 		return false, "总楼层高度不能小于1"
 	}
 
+	if req.Height > req.TotalHeight {
+		return false, "楼层高度必须小于等于总楼层"
+	}
+
 	// 检查Price > 0
 	if req.Price <= 0 {
 		return false, "价格必须大于0"
@@ -848,6 +852,12 @@ func (req *ModifyPropertyBaseInfoRequest) Validate() (bool, string) {
 	if req.TotalHeight != nil {
 		if *req.TotalHeight < 1 {
 			return false, "总楼层必须大于1"
+		}
+	}
+
+	if req.Height != nil && req.TotalHeight != nil {
+		if *req.Height > *req.TotalHeight {
+			return false, "楼层必须小于等于总楼层"
 		}
 	}
 
