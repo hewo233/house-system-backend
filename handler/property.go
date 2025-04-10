@@ -111,6 +111,26 @@ func CreatePropertyBaseInfo(c *gin.Context) {
 		return
 	}
 
+	// 检查重名
+	var existingProperty models.Property
+	result := db.DB.Table(consts.PropertyTable).Where("\"distinct\" = ? AND details = ?", req.Address.Distinct, req.Address.Details).Limit(1).Find(&existingProperty)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50020,
+			"message": "failed to query database: " + result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+	if result.RowsAffected > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40022,
+			"message": "address already exists",
+		})
+		c.Abort()
+		return
+	}
+
 	newProperty := models.NewProperty()
 	err := copier.Copy(newProperty, &req)
 	if err != nil {
@@ -389,11 +409,15 @@ type GetPropertyByIDResponse struct {
 			Distinct int    `json:"distinct"`
 			Details  string `json:"details"`
 		} `json:"address"`
-		Price      float64 `json:"price"`
-		Size       float64 `json:"size"`
-		Room       int     `json:"room"`
-		Direction  int     `json:"direction"`
-		UploadTime string  `json:"uploadTime"`
+		Price         float64 `json:"price"`
+		Size          float64 `json:"size"`
+		Special       int     `json:"special"`
+		Height        int     `json:"height"`
+		Subjectmatter int     `json:"subjectmatter"`
+		Renovation    int     `json:"renovation"`
+		Room          int     `json:"room"`
+		Direction     int     `json:"direction"`
+		UploadTime    string  `json:"uploadTime"`
 	} `json:"basic"`
 	Images   []string `json:"images"`
 	RichText string   `json:"richText"`
@@ -445,6 +469,10 @@ func GetPropertyByID(c *gin.Context) {
 	response.Basic.Address.Details = property.Address.Details
 	response.Basic.Price = property.Price
 	response.Basic.Size = property.Size
+	response.Basic.Special = property.Special
+	response.Basic.Height = property.Height
+	response.Basic.Subjectmatter = property.SubjectMatter
+	response.Basic.Renovation = property.Renovation
 	response.Basic.Room = property.Room
 	response.Basic.Direction = property.Direction
 	response.Basic.UploadTime = property.CreatedAt.Format("2006-01-02 15:04:05")
@@ -881,6 +909,26 @@ func ModifyPropertyBaseInfo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40083,
 			"message": "invalid ModifyPropertyBaseInfo Request: " + errMsg,
+		})
+		c.Abort()
+		return
+	}
+
+	// 检查重名
+	var existingProperty models.Property
+	result := db.DB.Table(consts.PropertyTable).Where("\"distinct\" = ? AND details = ?", req.Address.Distinct, req.Address.Details).Limit(1).Find(&existingProperty)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50080,
+			"message": "failed to query database: " + result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+	if result.RowsAffected > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"errno":   40082,
+			"message": "address already exists",
 		})
 		c.Abort()
 		return
