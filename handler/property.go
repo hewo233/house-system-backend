@@ -23,6 +23,7 @@ type CreatePropertyBaseInfoRequest struct {
 	} `json:"address" binding:"required"`
 	Direction     int     `json:"direction" binding:"required"`
 	Height        int     `json:"height" binding:"required"`
+	TotalHeight   int     `json:"totalHeight" binding:"required"`
 	Price         float64 `json:"price" binding:"required"`
 	Renovation    int     `json:"renovation" binding:"required"`
 	Room          int     `json:"room" binding:"required"`
@@ -47,9 +48,12 @@ func (req *CreatePropertyBaseInfoRequest) Validate() (bool, string) {
 		return false, "朝向必须在1-10范围内"
 	}
 
-	// 检查Height范围 (1-3)
-	if req.Height < 1 || req.Height > 3 {
-		return false, "楼层高度必须在1-3范围内"
+	if req.Height < 1 {
+		return false, "楼层高度不能小于1"
+	}
+
+	if req.TotalHeight < 1 {
+		return false, "总楼层高度不能小于1"
 	}
 
 	// 检查Price > 0
@@ -413,6 +417,7 @@ type GetPropertyByIDResponse struct {
 		Size          float64 `json:"size"`
 		Special       int     `json:"special"`
 		Height        int     `json:"height"`
+		TotalHeight   int     `json:"totalHeight"`
 		Subjectmatter int     `json:"subjectmatter"`
 		Renovation    int     `json:"renovation"`
 		Room          int     `json:"room"`
@@ -471,6 +476,7 @@ func GetPropertyByID(c *gin.Context) {
 	response.Basic.Size = property.Size
 	response.Basic.Special = property.Special
 	response.Basic.Height = property.Height
+	response.Basic.TotalHeight = property.TotalHeight
 	response.Basic.Subjectmatter = property.SubjectMatter
 	response.Basic.Renovation = property.Renovation
 	response.Basic.Room = property.Room
@@ -569,7 +575,7 @@ type SelectPropertiesRequest struct {
 	Special       []int `json:"special"`
 	Room          []int `json:"room"`
 	Direction     []int `json:"direction"`
-	Height        []int `json:"height"`
+	Height        []int `json:"height"` // 1 [1,6], 2 [7, 15], 3 > 15
 	Renovation    []int `json:"renovation"`
 	SubjectMatter []int `json:"subjectmatter"`
 }
@@ -697,6 +703,22 @@ func SelectProperties(c *gin.Context) {
 		query = query.Where(strings.Join(sizeConditions, " OR "))
 	}
 
+	var heightValue = [][]int{
+		{0, 0},
+		{1, 7},
+		{7, 16},
+		{16, math.MaxInt},
+	}
+
+	// 楼层筛选
+	if len(req.Height) > 0 {
+		heightConditions := make([]string, 0)
+		for i := 0; i < len(req.Height); i++ {
+			heightConditions = append(heightConditions, fmt.Sprintf("(height ?= %d AND height < %d)", heightValue[req.Height[i]][0], heightValue[req.Height[i]][1]))
+			query = query.Where(strings.Join(heightConditions, " OR "))
+		}
+	}
+
 	// 其他条件筛选
 	if len(req.Special) > 0 {
 		query = query.Where("special IN ?", req.Special)
@@ -706,9 +728,6 @@ func SelectProperties(c *gin.Context) {
 	}
 	if len(req.Direction) > 0 {
 		query = query.Where("direction IN ?", req.Direction)
-	}
-	if len(req.Height) > 0 {
-		query = query.Where("height IN ?", req.Height)
 	}
 	if len(req.Renovation) > 0 {
 		query = query.Where("renovation IN ?", req.Renovation)
@@ -788,6 +807,7 @@ type ModifyPropertyBaseInfoRequest struct {
 	} `json:"address"`
 	Direction     *int     `json:"direction"`
 	Height        *int     `json:"height"`
+	TotalHeight   *int     `json:"totalHeight"`
 	Price         *float64 `json:"price"`
 	Renovation    *int     `json:"renovation"`
 	Room          *int     `json:"room"`
@@ -820,8 +840,14 @@ func (req *ModifyPropertyBaseInfoRequest) Validate() (bool, string) {
 	}
 
 	if req.Height != nil {
-		if *req.Height < 1 || *req.Height > 3 {
-			return false, "楼层高度必须在1-3范围内"
+		if *req.Height < 1 {
+			return false, "楼层必须大于 1"
+		}
+	}
+
+	if req.TotalHeight != nil {
+		if *req.TotalHeight < 1 {
+			return false, "总楼层必须大于1"
 		}
 	}
 
@@ -953,6 +979,9 @@ func ModifyPropertyBaseInfo(c *gin.Context) {
 	}
 	if req.Height != nil {
 		updates["height"] = *req.Height
+	}
+	if req.TotalHeight != nil {
+		updates["totalHeight"] = *req.TotalHeight
 	}
 	if req.Price != nil {
 		updates["price"] = *req.Price
