@@ -366,6 +366,7 @@ func CreatePropertyRichText(c *gin.Context) {
 			"message": "successfully created property by default richText",
 			"url":     url,
 		})
+		return
 	}
 
 	richText := files[0]
@@ -718,9 +719,9 @@ func SelectProperties(c *gin.Context) {
 	if len(req.Height) > 0 {
 		heightConditions := make([]string, 0)
 		for i := 0; i < len(req.Height); i++ {
-			heightConditions = append(heightConditions, fmt.Sprintf("(height ?= %d AND height < %d)", heightValue[req.Height[i]][0], heightValue[req.Height[i]][1]))
-			query = query.Where(strings.Join(heightConditions, " OR "))
+			heightConditions = append(heightConditions, fmt.Sprintf("(height >= %d AND height < %d)", heightValue[req.Height[i]][0], heightValue[req.Height[i]][1]))
 		}
+		query = query.Where(strings.Join(heightConditions, " OR "))
 	}
 
 	// 其他条件筛选
