@@ -16,4 +16,5 @@ services:
       - ./db/.env:/app/db/.env:ro
       - ./utils/OSS/.env:/app/utils/OSS/.env:ro
       - ./config/.admin:/app/config/.admin:ro
+      - ./utils/jwt/.key:/app/utils/jwt/.key:ro
     restart: unless-stopped
