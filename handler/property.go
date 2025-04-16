@@ -537,9 +537,13 @@ func getListResponseByProperties(c *gin.Context, properties []models.Property) (
 		}
 
 		var cover string
-		if propertyImage != nil {
+		if propertyImage.URL != "" {
 			cover = propertyImage.URL
 		} else {
+			cover = consts.DefaultImageUrl
+		}
+
+		if cover == "" {
 			cover = consts.DefaultImageUrl
 		}
 
