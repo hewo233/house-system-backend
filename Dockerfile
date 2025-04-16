@@ -35,6 +35,7 @@ RUN mkdir -p db utils/OSS
 COPY db/.env db/
 COPY utils/OSS/.env utils/OSS/
 COPY config/.admin config/
+COPY utils/jwt/.key utils/jwt/
 
 EXPOSE 8080
 
