@@ -469,9 +469,24 @@ func GetPropertyByID(c *gin.Context) {
 		return
 	}
 
+	// 如果没有上传图片，使用默认图片
+	if len(propertyImages) == 0 {
+		defaultImage := models.PropertyImage{
+			URL: consts.DefaultImageUrl,
+		}
+		propertyImages = append(propertyImages, defaultImage)
+	}
+
 	var imageUrls []string
 	for _, image := range propertyImages {
 		imageUrls = append(imageUrls, image.URL)
+	}
+
+	var richText string
+	if property.RichTextURL != "" {
+		richText = property.RichTextURL
+	} else {
+		richText = consts.DefaultHTMLUrl
 	}
 
 	var response GetPropertyByIDResponse
@@ -488,7 +503,7 @@ func GetPropertyByID(c *gin.Context) {
 	response.Basic.Direction = property.Direction
 	response.Basic.UploadTime = property.CreatedAt.Format("2006-01-02 15:04:05")
 	response.Images = imageUrls
-	response.RichText = property.RichTextURL
+	response.RichText = richText
 
 	c.JSON(http.StatusOK, gin.H{
 		"errno":   20000,
@@ -512,7 +527,7 @@ func getListResponseByProperties(c *gin.Context, properties []models.Property) (
 	for _, property := range properties {
 
 		propertyImage := models.NewPropertyImage()
-		if err := db.DB.Table(consts.PropertyImageTable).Where("property_id=? AND is_main=?", property.ID, true).First(propertyImage).Error; err != nil {
+		if err := db.DB.Table(consts.PropertyImageTable).Where("property_id=? AND is_main=?", property.ID, true).Limit(1).Find(propertyImage).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"errno":   50061,
 				"message": "failed to query property images: " + err.Error(),
