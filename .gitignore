@@ -2,3 +2,4 @@ db/.env
 .idea/**
 config/**
 utils/OSS/.env
+utils/jwt/.key
