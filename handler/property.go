@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/hewo233/house-system-backend/db"
@@ -9,7 +8,6 @@ import (
 	"github.com/hewo233/house-system-backend/shared/consts"
 	"github.com/hewo233/house-system-backend/utils/OSS"
 	"github.com/jinzhu/copier"
-	"gorm.io/gorm"
 	"math"
 	"net/http"
 	"strconv"
@@ -200,19 +198,19 @@ func CreatePropertyImage(c *gin.Context) {
 
 	// 验证房源是否已经上传过图片
 	var propertyImage models.PropertyImage
-	if err := db.DB.Table(consts.PropertyImageTable).Where("property_id=?", propertyID).First(&propertyImage).Error; err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"errno":   50030,
-				"message": "failed to query property images: " + err.Error(),
-			})
-			c.Abort()
-			return
-		}
-	} else {
+	result := db.DB.Table(consts.PropertyImageTable).Where("property_id = ?", propertyID).Limit(1).Find(&propertyImage)
+	if result.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"errno":   50030,
+			"message": "failed to query property images: " + result.Error.Error(),
+		})
+		c.Abort()
+		return
+	}
+	if result.RowsAffected > 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"errno":   40032,
-			"message": "property images already exist",
+			"message": "property image already exists",
 		})
 		c.Abort()
 		return
